@@ -1,0 +1,424 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+    <title>HTML5 uploads to Amazon S3 - interactive demo</title>
+
+    <script src="sha1.js"></script>
+    <script src="webtoolkit.base64.js"></script>
+
+    <script type="text/javascript">  
+function ensureScriptsLoaded() {
+  try {
+    var signature = b64_hmac_sha1("Amazon S3", "POST Sample");
+  } catch (e) {
+    alert( "Please check the source and make sure you are importing the SHA1 Javascript library." );
+    return false;
+  }
+  try {
+    Base64.encode("Amazon S3");
+  } catch ( e ) {
+    alert( "Please check the source and make sure you are importing the Base64 Javascript library." );
+    return false;
+  }
+  return true;
+}
+
+function addField(name, value) {
+  var table = document.getElementById('table');
+  var html = "<td>" + name + "</td>"+
+             "<td><input type='text' name='"+name+"' value='" + value + "'></td>";
+  var tr = document.createElement("tr");
+  tr.setAttribute("id", "field-"+name);
+  var tdName = document.createElement("td");
+  tdName.setAttribute("align", "right");
+  var labelName = name
+  if ( name == 'policy' || name == 'AWSAccessKeyId' || name == 'signature' ) {
+     labelName += ' (usually hidden)';
+  }
+  tdName.innerHTML = labelName + ":";
+  tr.appendChild(tdName);
+  var tdValue = document.createElement("td");
+  var input = document.createElement("input");
+  input.setAttribute("id","id"+name);
+  input.setAttribute("type","text");
+  input.setAttribute("name",name);
+  input.setAttribute("value",value);
+  tdValue.appendChild(input);
+  tr.appendChild(tdValue);
+  table.appendChild(tr);
+}
+
+function addPolicy() {
+  if ( ! ensureScriptsLoaded() ) return;
+
+  var awsid = document.getElementById("idAWSAccessKeyId").value;
+  var awskey = document.getElementById("awskey").value;
+
+  var policyText = document.getElementById("policy").value;
+  var policyBase64 = Base64.encode(policyText);
+  document.getElementById("idpolicy").setAttribute("value", policyBase64);
+
+  var signature = b64_hmac_sha1(awskey, policyBase64);
+  document.getElementById("idsignature").setAttribute("value", signature);
+}
+
+function setUrl() {
+  var newurl = document.getElementById("base-url").value;
+  var form = document.getElementById("postform");
+  form.action = newurl;
+}
+
+function getExtension(fileFieldId) {
+  var fileField = document.getElementById(fileFieldId).value;
+  if (fileField.indexOf('\\') > -1) {
+    fileField = fileField.substring(fileField.lastIndexOf('\\') + 1, fileField.length);
+  }
+  if (fileField.indexOf('/') > -1) {
+    fileField = fileField.substring(fileField.lastIndexOf('/') + 1, fileField.length);
+  }
+
+  var extension;
+  if (fileField.indexOf('.') > -1) {
+    extension = fileField.substring(fileField.lastIndexOf('.') + 1, fileField.length);
+  } else {
+    extension = "";
+  }
+  return extension;
+}
+
+</script>
+	<script type="text/javascript" >
+
+function size(bytes){   // simple function to show a friendly size
+    var i = 0;
+    while(1023 < bytes){
+        bytes /= 1024;
+        ++i;
+    };
+    return  i ? bytes.toFixed(2) + ["", " Kb", " Mb", " Gb", " Tb"][i] : bytes + " bytes";
+};
+
+function RequestBuilder() {
+	this.header = function( name, value, params ) {
+	    	var crlf     = '\r\n';
+	
+		this.body += name + ": " + value;
+	
+		if( params ) {
+			for( var count=params.length, i=0; i<count; i++ ) {
+				pair = params[i];
+				this.body += '; ' + pair[0] + '="' + pair[1] + '"';
+			}
+		}
+		this.body += crlf;
+		return this;
+	}
+	this.segment = function(headers, body) {
+	    	var dashdash = '--';
+	    	var crlf     = '\r\n';
+	
+		this.body += dashdash + this.boundary + crlf;
+		this.body += headers;
+		this.body += crlf;
+		this.body += body;
+		return this;
+	}
+	
+	this.param = function(name, value) {
+	    	var dashdash = '--';
+	    	var crlf     = '\r\n';
+	
+		headers =  'Content-Disposition: form-data; name="' + name + '"' + crlf;
+		body = value + crlf;
+	
+		this.segment(headers, body, this.boundary);
+		return this;
+	}
+
+	this.footer = function(){
+	    	var dashdash = '--';
+	    	var crlf     = '\r\n';
+    		this.body += dashdash + this.boundary + dashdash + crlf;
+	}
+
+	this.file = function(fieldname, filename, type, file_content) {
+	    	var dashdash = '--';
+	    	var crlf     = '\r\n';
+	
+		this.body += dashdash + this.boundary + crlf;
+		this.header( "Content-Disposition", "form-data", [ ['name', fieldname], ['filename', filename] ]);
+		this.header( "Content-Type", type);
+
+		this.body += crlf;
+		this.body += file_content;
+        	this.body += crlf;
+	}
+
+	this.body = '';
+
+	this.output = function() {
+		return this.body;
+	}
+
+	this.dd     = '--';
+	this.nl     = '\r\n';
+
+	var id = (new Date).getTime();
+	//this.boundary = '------multipartformboundary' + id;
+}
+
+function sendFile(handler){
+        var xhr = new XMLHttpRequest;
+
+	//check size
+        if(handler.maxSize && handler.maxSize < handler.file.fileSize){
+        	var msg = "The file " + handler.file.fileName + " is too big [" + size(handler.file.fileSize) + "]";
+        	handler.onerror(msg);
+		return;
+        };
+
+	//setup callbacks
+    	var eventnames = "onabort.onerror.onloadstart.onprogress".split(".");
+        for( i in eventnames ) {
+	    var ev = eventnames[i];
+            xhr.upload[ev] = function(rpe){
+			handler[ ev ].call(handler, rpe, xhr);
+		};
+	}
+
+	//loop until finished
+        xhr.upload.onload = function(rpe){
+        	var checkstatus = function(){
+        	    if(xhr.readyState === 4){
+        	            handler.onload(rpe, xhr);
+        	    } else
+        	        setTimeout(arguments.callee, 15);
+        	};
+        	setTimeout(checkstatus,15);
+        };
+
+	var file = handler.file;
+	var id = (new Date).getTime();
+
+	var builder = new RequestBuilder;
+	builder.boundary = '------multipartformboundary' + id;
+
+	builder.param( 'key', id + '-' + escape(file.fileName) );
+	builder.param( 'acl', document.getElementById('idacl').value );
+	builder.param( 'content-type', file.type );
+	builder.param( 'AWSAccessKeyId', document.getElementById('idAWSAccessKeyId').value );
+	builder.param( 'policy', document.getElementById('idpolicy').value );
+	builder.param( 'signature', document.getElementById('idsignature').value );
+
+	builder.file( 'file', file.fileName, 'application/ocet-stream', file.getAsBinary() );
+
+	builder.footer();
+
+	var url = document.getElementById('base-url').value;
+	xhr.open("POST", url, true);
+	xhr.setRequestHeader('content-type', 'multipart/form-data; boundary=' + builder.boundary);
+    	xhr.sendAsBinary( builder.output() );
+
+        return  handler;
+    };
+
+	</script>
+        <script type="text/javascript">
+
+        window.onload = function(){
+
+            // create elements
+            var input = document.getElementById("file");
+            var sub = document.body.appendChild(document.createElement("div")).appendChild(document.createElement("span")),
+                bar = document.body.appendChild(document.createElement("div")).appendChild(document.createElement("span")),
+                div = document.body.appendChild(document.createElement("div"));
+            
+            // set input type as file
+            //input.setAttribute("type", "file");
+            
+            // enable multiple selection (note: it does not work with direct input.multiple = true assignment)
+            //input.setAttribute("multiple", "false");
+            
+            // auto upload on files change
+            var onfileselect = function(){
+                
+                // disable the input
+                input.setAttribute("disabled", "true");
+                
+                var handler = {
+
+    		    maxSize: 2024000000,
+                
+                    // list of files to upload
+                    file:input.files[0],
+                    
+                    // clear the container 
+                    onloadstart:function(){
+                        div.innerHTML = "Init upload ... ";
+                        sub.style.width = bar.style.width = "0px";
+                    },
+                    
+                    // do something during upload ...
+                    onprogress:function(rpe){
+                        div.innerHTML = [
+                            "Uploading: " + this.file.fileName,
+                            "Sent: " + size(rpe.loaded) + " of " + size(rpe.total),
+                            "Total Sent: " + size(this.sent + rpe.loaded) + " of " + size(this.total)
+                        ].join("<br />");
+                        sub.style.width = ((rpe.loaded * 200 / rpe.total) >> 0) + "px";
+                        bar.style.width = (((this.sent + rpe.loaded) * 200 / this.total) >> 0) + "px";
+                    },
+                    
+                    // fired when last file has been uploaded
+                    onload:function(rpe, xhr){
+
+			var msg = '';
+			if (xhr.status == 204) {
+				msg = "Uploaded successfully: " + xhr.getResponseHeader("Location");
+			} else {
+				msg = "Error. ";
+				msg += "<i>" + xhr.responseText + "</i>";
+			}
+
+                        div.innerHTML += ["", msg ].join("<br />");
+                        sub.style.width = bar.style.width = "200px";
+                        
+                        // enable the input again
+                        input.removeAttribute("disabled");
+                    },
+                    
+                    // if something is wrong ... (from native instance or because of size)
+                    onerror:function(msg){
+                        if (!msg) msg = "error";
+                        div.innerHTML = msg;
+                        
+		    	alert('error!');
+
+                        // enable the input again
+                        input.removeAttribute("disabled");
+                    },
+
+		    onabort:function(){
+		    	alert('aborted!');
+		    }
+                };
+    		handler.sent = 0;
+    		handler.total = handler.file.fileSize;
+    		sendFile(handler);
+
+
+            };
+            //input.addEventListener("change", onfileselect, false);
+  	    document.getElementById('ajaxuploadbutton').addEventListener("click", onfileselect, false);
+            
+            sub.parentNode.className = bar.parentNode.className = "progress";
+        };
+	
+        </script>
+
+<style type="text/css">
+body { text-decoration: none; font-family: sans-serif; font-size: 10pt; font-weight: medium; }
+input { width: 100%; }
+.userinteraction { border: 1px solid #009; background: #fff; padding: 5px }
+.progress { width: 200px; border: 1px solid #BBB; background-color: #FFF; padding: 0; }
+.progress span { display: block; width: 0px; height: 10px; background-color: #DDD; }
+</style>
+</head>
+<body style="background: rgb(176, 176, 255) none repeat scroll 0%; -moz-background-clip: -moz-initial; -moz-background-origin: -moz-initial; -moz-background-inline-policy: -moz-initial;">
+<h1>self-contained HTML5 uploads to Amazon S3 - interactive demo</h1>
+<p>Uploads through a file hosted on Amazon, with security policy.</p>
+
+<div style="width: 902px">
+<div style="float: right; width: 450px">
+
+	<h3>Policy Document</h3>
+	<p>The Policy Document.</p>
+	<p><textarea id="policy" style="width: 100%" rows="12">{
+	  "expiration": "2012-01-01T12:00:00.000Z",
+	  "conditions": [
+	    {"bucket": "<bucketname>" },
+	    {"acl": "public-read" },
+	    ["starts-with", "$key", ""],
+	    ["starts-with", "$Content-Type", ""],
+	  ]
+	}
+	</textarea></p>
+
+	<h3>Credentials</h3>
+	<p>is not actually transimtted</p>
+	
+	<table>
+	  <tbody>
+	  <tr>
+	    <td>AWS Key</td>
+	    <td><input id="awskey" style="width:100%" value="" type="text"></td>
+	  </tr>
+	  </tbody>
+	</table>
+
+	<p><input value="Set Key, Calculate Policy & Signature" onclick="addPolicy()" type="button" /></p>
+	
+</div>
+
+<div style="float: right; width: 450px;">
+<hr />
+<h3>Set the Bucket</h3>
+<p>Must be in the form o s3.amazonaws.com/bucketname, not bucketname.s3.amazonaws.com !</p>
+<p>Post URL: <input id="base-url" value="http://s3.amazonaws.com/<bucketname>" type="text"> <button onclick="setUrl()">Set URL</button> </p>
+
+<hr />
+<h2>Sample Form Based on the Above Fields</h2>
+<p>Form data:</p>
+<div class="userinteraction">
+<form id="postform" action="http://s3.amazonaws.com/<bucketname>/" method="post" enctype="multipart/form-data">
+<table width="300px">
+  <col width="10%"><col width="90%">
+  <tbody id="table">
+
+	  <tr id="field-key">
+		  <td align="right">key:</td>
+		  <td><input value="dummy test-file" name="key" id="idkey" type="text"></td>
+	  </tr>
+	  <tr id="field-acl">
+		  <td align="right">acl:</td>
+		  <td><input value="public-read" name="acl" id="idacl" type="text"></td>
+	  </tr>
+	  <tr id="field-content-type">
+		  <td align="right">content-type:</td>
+		  <td><input value="text/plain" name="content-type" id="idcontent-type" type="text"></td>
+	  </tr>
+	  <tr id="field-AWSAccessKeyId"><td align="right">AWSAccessKeyId <br /><small>(usually hidden)</small>:</td>
+		  <td><input value="" name="AWSAccessKeyId" id="idAWSAccessKeyId" type="text"></td>
+	  </tr>
+	  <tr id="field-policy">
+		  <td align="right">policy <br /><small>(usually hidden)</small>:</td>
+		  <td><input value="" name="policy" id="idpolicy" type="text"></td>
+	  </tr>
+	  <tr id="field-signature">
+		  <td align="right">signature <br /><small>(usually hidden)</small>:</td>
+		  <td><input value="" name="signature" id="idsignature" type="text"></td>
+	  </tr>
+
+  </tbody>
+</table>
+
+<p>File: <input name="file" type="file" id="file"> <br />
+<br />
+</p>
+<p>regular submit (no ajax or progress bar - just like in <a href='http://s3.amazonaws.com/doc/s3-example-code/post/post_sample.html'>Amazon's  demo</a> )
+<small><input name="submit" value="Basic ulpoad" style='width: 100px' type="submit" ></small>
+</p>
+	<h3>Finally... upload!</h3>
+	<p>
+	<button id="ajaxuploadbutton"><big><strong>Ajax upload with progress - GO</strong><big></button>
+	</p>
+</form>
+</div>
+
+</div>
+</div>
+
+
+</body>
+</html>
