@@ -24,67 +24,22 @@ function ensureScriptsLoaded() {
   return true;
 }
 
-function addField(name, value) {
-  var table = document.getElementById('table');
-  var html = "<td>" + name + "</td>"+
-             "<td><input type='text' name='"+name+"' value='" + value + "'></td>";
-  var tr = document.createElement("tr");
-  tr.setAttribute("id", "field-"+name);
-  var tdName = document.createElement("td");
-  tdName.setAttribute("align", "right");
-  var labelName = name
-  if ( name == 'policy' || name == 'AWSAccessKeyId' || name == 'signature' ) {
-     labelName += ' (usually hidden)';
-  }
-  tdName.innerHTML = labelName + ":";
-  tr.appendChild(tdName);
-  var tdValue = document.createElement("td");
-  var input = document.createElement("input");
-  input.setAttribute("id","id"+name);
-  input.setAttribute("type","text");
-  input.setAttribute("name",name);
-  input.setAttribute("value",value);
-  tdValue.appendChild(input);
-  tr.appendChild(tdValue);
-  table.appendChild(tr);
-}
-
 function addPolicy() {
-  if ( ! ensureScriptsLoaded() ) return;
-
   var awsid = document.getElementById("idAWSAccessKeyId").value;
   var awskey = document.getElementById("awskey").value;
 
   var policyText = document.getElementById("policy").value;
   var policyBase64 = Base64.encode(policyText);
-  document.getElementById("idpolicy").setAttribute("value", policyBase64);
+  document.getElementById("idpolicy").value = policyBase64;
 
   var signature = b64_hmac_sha1(awskey, policyBase64);
-  document.getElementById("idsignature").setAttribute("value", signature);
+  document.getElementById("idsignature").value = signature;
 }
 
 function setUrl() {
   var newurl = document.getElementById("base-url").value;
   var form = document.getElementById("postform");
   form.action = newurl;
-}
-
-function getExtension(fileFieldId) {
-  var fileField = document.getElementById(fileFieldId).value;
-  if (fileField.indexOf('\\') > -1) {
-    fileField = fileField.substring(fileField.lastIndexOf('\\') + 1, fileField.length);
-  }
-  if (fileField.indexOf('/') > -1) {
-    fileField = fileField.substring(fileField.lastIndexOf('/') + 1, fileField.length);
-  }
-
-  var extension;
-  if (fileField.indexOf('.') > -1) {
-    extension = fileField.substring(fileField.lastIndexOf('.') + 1, fileField.length);
-  } else {
-    extension = "";
-  }
-  return extension;
 }
 
 </script>
@@ -244,7 +199,7 @@ function sendFile(handler){
             var onfileselect = function(){
                 
                 // disable the input
-                input.setAttribute("disabled", "true");
+                input.setAttribute.disabled = true;
                 
                 var handler = {
 
@@ -334,16 +289,16 @@ input { width: 100%; }
 
 	<h3>Policy Document</h3>
 	<p>The Policy Document.</p>
-	<p><textarea id="policy" style="width: 100%" rows="12">{
-	  "expiration": "2012-01-01T12:00:00.000Z",
-	  "conditions": [
-	    {"bucket": "<bucketname>" },
-	    {"acl": "public-read" },
-	    ["starts-with", "$key", ""],
-	    ["starts-with", "$Content-Type", ""],
-	  ]
-	}
-	</textarea></p>
+<p><textarea id="policy" cols="40" rows="12">{
+  "expiration": "2012-01-01T12:00:00.000Z",
+  "conditions": [
+    {"bucket": "<bucketname>" },
+    {"acl": "public-read" },
+    ["starts-with", "$key", ""],
+    ["starts-with", "$Content-Type", ""],
+  ]
+}
+</textarea></p>
 
 	<h3>Credentials</h3>
 	<p>is not actually transimtted</p>
@@ -409,11 +364,11 @@ input { width: 100%; }
 <p>regular submit (no ajax or progress bar - just like in <a href='http://s3.amazonaws.com/doc/s3-example-code/post/post_sample.html'>Amazon's  demo</a> )
 <small><input name="submit" value="Basic ulpoad" style='width: 100px' type="submit" ></small>
 </p>
+</form>
 	<h3>Finally... upload!</h3>
 	<p>
 	<button id="ajaxuploadbutton"><big><strong>Ajax upload with progress - GO</strong><big></button>
 	</p>
-</form>
 </div>
 
 </div>
