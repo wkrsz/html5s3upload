@@ -73,7 +73,6 @@ function RequestBuilder() {
     this.nl     = '\r\n';
 
     var id = (new Date).getTime();
-    //this.boundary = '------multipartformboundary' + id;
 }
 
 function sendFile(handler){

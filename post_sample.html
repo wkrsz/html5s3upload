@@ -10,22 +10,6 @@
 
     <script type="text/javascript">
 
-        function ensureScriptsLoaded() {
-          try {
-            var signature = b64_hmac_sha1("Amazon S3", "POST Sample");
-          } catch (e) {
-            alert( "Please check the source and make sure you are importing the SHA1 Javascript library." );
-            return false;
-          }
-          try {
-            Base64.encode("Amazon S3");
-          } catch ( e ) {
-            alert( "Please check the source and make sure you are importing the Base64 Javascript library." );
-            return false;
-          }
-          return true;
-        }
-
         function addPolicy() {
           var awsid = document.getElementById("idAWSAccessKeyId").value;
           var awskey = document.getElementById("awskey").value;
