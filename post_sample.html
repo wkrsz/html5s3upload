@@ -6,180 +6,45 @@
 
     <script src="sha1.js"></script>
     <script src="webtoolkit.base64.js"></script>
+    <script src="upload.js"></script>
 
-    <script type="text/javascript">  
-function ensureScriptsLoaded() {
-  try {
-    var signature = b64_hmac_sha1("Amazon S3", "POST Sample");
-  } catch (e) {
-    alert( "Please check the source and make sure you are importing the SHA1 Javascript library." );
-    return false;
-  }
-  try {
-    Base64.encode("Amazon S3");
-  } catch ( e ) {
-    alert( "Please check the source and make sure you are importing the Base64 Javascript library." );
-    return false;
-  }
-  return true;
-}
+    <script type="text/javascript">
 
-function addPolicy() {
-  var awsid = document.getElementById("idAWSAccessKeyId").value;
-  var awskey = document.getElementById("awskey").value;
+        function ensureScriptsLoaded() {
+          try {
+            var signature = b64_hmac_sha1("Amazon S3", "POST Sample");
+          } catch (e) {
+            alert( "Please check the source and make sure you are importing the SHA1 Javascript library." );
+            return false;
+          }
+          try {
+            Base64.encode("Amazon S3");
+          } catch ( e ) {
+            alert( "Please check the source and make sure you are importing the Base64 Javascript library." );
+            return false;
+          }
+          return true;
+        }
 
-  var policyText = document.getElementById("policy").value;
-  var policyBase64 = Base64.encode(policyText);
-  document.getElementById("idpolicy").value = policyBase64;
+        function addPolicy() {
+          var awsid = document.getElementById("idAWSAccessKeyId").value;
+          var awskey = document.getElementById("awskey").value;
 
-  var signature = b64_hmac_sha1(awskey, policyBase64);
-  document.getElementById("idsignature").value = signature;
-}
+          var policyText = document.getElementById("policy").value;
+          var policyBase64 = Base64.encode(policyText);
+          document.getElementById("idpolicy").value = policyBase64;
 
-function setUrl() {
-  var newurl = document.getElementById("base-url").value;
-  var form = document.getElementById("postform");
-  form.action = newurl;
-}
+          var signature = b64_hmac_sha1(awskey, policyBase64);
+          document.getElementById("idsignature").value = signature;
+        }
 
-</script>
-	<script type="text/javascript" >
+        function setUrl() {
+          var newurl = document.getElementById("base-url").value;
+          var form = document.getElementById("postform");
+          form.action = newurl;
+        }
 
-function size(bytes){   // simple function to show a friendly size
-    var i = 0;
-    while(1023 < bytes){
-        bytes /= 1024;
-        ++i;
-    };
-    return  i ? bytes.toFixed(2) + ["", " Kb", " Mb", " Gb", " Tb"][i] : bytes + " bytes";
-};
 
-function RequestBuilder() {
-	this.header = function( name, value, params ) {
-	    	var crlf     = '\r\n';
-	
-		this.body += name + ": " + value;
-	
-		if( params ) {
-			for( var count=params.length, i=0; i<count; i++ ) {
-				pair = params[i];
-				this.body += '; ' + pair[0] + '="' + pair[1] + '"';
-			}
-		}
-		this.body += crlf;
-		return this;
-	}
-	this.segment = function(headers, body) {
-	    	var dashdash = '--';
-	    	var crlf     = '\r\n';
-	
-		this.body += dashdash + this.boundary + crlf;
-		this.body += headers;
-		this.body += crlf;
-		this.body += body;
-		return this;
-	}
-	
-	this.param = function(name, value) {
-	    	var dashdash = '--';
-	    	var crlf     = '\r\n';
-	
-		headers =  'Content-Disposition: form-data; name="' + name + '"' + crlf;
-		body = value + crlf;
-	
-		this.segment(headers, body, this.boundary);
-		return this;
-	}
-
-	this.footer = function(){
-	    	var dashdash = '--';
-	    	var crlf     = '\r\n';
-    		this.body += dashdash + this.boundary + dashdash + crlf;
-	}
-
-	this.file = function(fieldname, filename, type, file_content) {
-	    	var dashdash = '--';
-	    	var crlf     = '\r\n';
-	
-		this.body += dashdash + this.boundary + crlf;
-		this.header( "Content-Disposition", "form-data", [ ['name', fieldname], ['filename', filename] ]);
-		this.header( "Content-Type", type);
-
-		this.body += crlf;
-		this.body += file_content;
-        	this.body += crlf;
-	}
-
-	this.body = '';
-
-	this.output = function() {
-		return this.body;
-	}
-
-	this.dd     = '--';
-	this.nl     = '\r\n';
-
-	var id = (new Date).getTime();
-	//this.boundary = '------multipartformboundary' + id;
-}
-
-function sendFile(handler){
-        var xhr = new XMLHttpRequest;
-
-	//check size
-        if(handler.maxSize && handler.maxSize < handler.file.fileSize){
-        	var msg = "The file " + handler.file.fileName + " is too big [" + size(handler.file.fileSize) + "]";
-        	handler.onerror(msg);
-		return;
-        };
-
-	//setup callbacks
-    	var eventnames = "onabort.onerror.onloadstart.onprogress".split(".");
-        for( i in eventnames ) {
-	    var ev = eventnames[i];
-            xhr.upload[ev] = function(rpe){
-			handler[ ev ].call(handler, rpe, xhr);
-		};
-	}
-
-	//loop until finished
-        xhr.upload.onload = function(rpe){
-        	var checkstatus = function(){
-        	    if(xhr.readyState === 4){
-        	            handler.onload(rpe, xhr);
-        	    } else
-        	        setTimeout(arguments.callee, 15);
-        	};
-        	setTimeout(checkstatus,15);
-        };
-
-	var file = handler.file;
-	var id = (new Date).getTime();
-
-	var builder = new RequestBuilder;
-	builder.boundary = '------multipartformboundary' + id;
-
-	builder.param( 'key', id + '-' + escape(file.fileName) );
-	builder.param( 'acl', document.getElementById('idacl').value );
-	builder.param( 'content-type', file.type );
-	builder.param( 'AWSAccessKeyId', document.getElementById('idAWSAccessKeyId').value );
-	builder.param( 'policy', document.getElementById('idpolicy').value );
-	builder.param( 'signature', document.getElementById('idsignature').value );
-
-	builder.file( 'file', file.fileName, 'application/ocet-stream', file.getAsBinary() );
-
-	builder.footer();
-
-	var url = document.getElementById('base-url').value;
-	xhr.open("POST", url, true);
-	xhr.setRequestHeader('content-type', 'multipart/form-data; boundary=' + builder.boundary);
-    	xhr.sendAsBinary( builder.output() );
-
-        return  handler;
-    };
-
-	</script>
-        <script type="text/javascript">
 
         window.onload = function(){
 
