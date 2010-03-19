@@ -1,4 +1,5 @@
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml">
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
@@ -10,16 +11,23 @@
 
     <script type="text/javascript">
 
-        function addPolicy() {
+        function generatePolicy() {
           var awsid = document.getElementById("idAWSAccessKeyId").value;
           var awskey = document.getElementById("awskey").value;
 
           var policyText = document.getElementById("policy").value;
           var policyBase64 = Base64.encode(policyText);
-          document.getElementById("idpolicy").value = policyBase64;
+          document.getElementById("gen-policy").value = policyBase64;
 
           var signature = b64_hmac_sha1(awskey, policyBase64);
+          document.getElementById("gen-signature").value = signature;
+        }
+
+        function applyPolicy() {
+          var signature = document.getElementById("gen-signature").value;
+          var policy = document.getElementById("gen-policy").value;
           document.getElementById("idsignature").value = signature;
+          document.getElementById("idpolicy").value = policy;
         }
 
         function setUrl() {
@@ -49,6 +57,14 @@
                 
                     // list of files to upload
                     file:input.files[0],
+
+                    parameters: {
+                        acl: document.getElementById('idacl').value,
+                        aws_access_key: document.getElementById('idAWSAccessKeyId').value,
+                        policy: document.getElementById('idpolicy').value,
+                        signature: document.getElementById('idsignature').value,
+                        url: document.getElementById('base-url').value
+                    },
                     
                     // clear the container 
                     onloadstart:function(){
@@ -107,22 +123,155 @@
 
             };
 
-  	    document.getElementById('ajaxuploadbutton').addEventListener("click", startUpload, false);
-            
+  	    document.getElementById('ajaxuploadbutton').addEventListener("click", startUpload, false);            
             sub.parentNode.className = bar.parentNode.className = "progress";
-        };
-	
-        </script>
+        };	
+    </script>
 
-<style type="text/css">
-body { text-decoration: none; font-family: sans-serif; font-size: 10pt; font-weight: medium; }
-input { width: 100%; }
-.userinteraction { border: 1px solid #009; background: #fff; padding: 5px }
-.progress { width: 200px; border: 1px solid #BBB; background-color: #FFF; padding: 0; }
-.progress span { display: block; width: 0px; height: 10px; background-color: #DDD; }
-</style>
+    <style type="text/css">
+
+        body{background: #BFCFCC; text-align:center; font-size:12px; caption-side:black;}
+        input, select, textarea{background: #f9e9c2; border:none; -moz-border-radius: 6px; -webkit-border-radius: 6px; padding:3px;}
+        input{height:22px;}
+
+        #content{width:980px; height:auto; margin:auto;}
+        .col{min-height:550px; height:auto !important; height:650px; float:left; padding:10px 10px 30px;  background: #8C9C9A; margin-left:10px;
+        -moz-border-radius: 15px; -webkit-border-radius: 15px;}
+        .col img, .col .step{float:left;}
+        .row{position:relative; height:250px; padding:10px; margin:auto;}
+        .step{width:50px; height:35px; padding-top:15px; -moz-border-radius: 10px; -webkit-border-radius: 10px; background:white; color:orange; text-align:center; font-weight:bold; font-size:13px;
+        font-family:tahoma;}
+
+        .info{ width:93%; padding: 6px; background:#bfcfcf; text-align:left; -moz-border-radius: 5px; -webkit-border-radius: 5px; margin:auto; color:#111;}
+        .gen-signature{width:95%; margin:30px auto 0 auto;}
+        textarea#policy{font-size:11px; width:97%; height:130px;}
+        input#awskey{width:90%;}
+        input#gen-signature{width:90%;}
+        #form-table{width:95%; margin-top:30px;}
+        #form-table tr td input{ width:98%;}
+        #form-table tr td{padding:0 10px 13px 0; height:auto; font-size:11px; color:black; }
+        #basic-upload-button, #ajax-upload-button{width:80%; height:35px; position:absolute; left:20px; bottom:30px; background:orange; border:2px solid white;}
+        #generate, #apply-signature{width:80%; height:35px; background: #485C5A; border:2px solid white; color: white;}
+        #apply-signature{width:50%;}
+    </style>
+
 </head>
-<body style="background: rgb(176, 176, 255) none repeat scroll 0%; -moz-background-clip: -moz-initial; -moz-background-origin: -moz-initial; -moz-background-inline-policy: -moz-initial;">
+<body>
+
+    <div id="content">
+        <div class="col" style="width:35%;">
+            <div class="info">
+                <h2>step 1</h2>Suspendisse potenti. Phasellus rutrum ante in ante vestibulum et aliquet lectus volutpat. Nam a lorem sit amet felis venenatis dignissim. In sodales turpis sed justo adipiscing vitae condimentum eros varius.
+            </div>
+
+            <div class="gen-signature">
+                <table cellpadding="0" cellspacing="0" border="0"
+                    <tr>
+                        <td width="60%"  align="center">
+                            Policy
+                            <textarea id="policy" cols="40" rows="12">{
+  "expiration": "2012-01-01T12:00:00.000Z",
+  "conditions": [
+    {"bucket": "<bucketname>" },
+    {"acl": "public-read" },
+    ["starts-with", "$key", ""],
+    ["starts-with", "$Content-Type", ""],
+  ]
+}
+</textarea>
+                        </td>
+                        <td width="40%"  align="center">
+                            AWS Key
+                            <input id="awskey" value="" type="text">
+                        </td>
+                    </tr>
+                    <tr>
+                        <td colspan="2" height="80px"e><input type="button" id="generate" onclick="generatePolicy()" value="Calculate Policy &amp; Signature"></td>
+                    </tr>
+                    <tr>
+                        <td width="50%" align="center">
+                            Policy<br/>
+                            <input value="" name="policy" id="gen-policy" type="text">
+                        </td>
+                        <td width="50%">
+                            Signature<br/>
+                            <input value="" name="signature" id="gen-signature" type="text">
+                        </td>
+                    </tr>
+                </table>
+            </div>
+
+            <br/>
+            <br/>
+            <br/>
+
+            <input type="button" id="apply-signature" onclick="applyPolicy()" value="Apply &gt;&gt;">
+
+        </div>
+
+        <div class="col" style="width:33%;">
+
+            <div class="info">
+                <h2>step 2</h2>Suspendisse potenti. Nam a lorem sit amet felis venenatis dignissim. In sodales turpis sed justo adipiscing vitae condimentum eros varius.
+            </div>
+
+            <table cellpadding="0" cellspacing="0" border="0" id="form-table">
+                <tr>
+                    <td width="35%" align="right">Bucket name</td>
+                    <td width="65%" align="left"><input value="dummy test-file" name="key" id="idbucket" type="text"></td>
+                </tr>
+                <tr>
+                    <td width="35%" align="right">Key</td>
+                    <td width="65%" align="left"><input value="dummy test-file" name="key" id="idkey" type="text"></td>
+                </tr>
+                <tr>
+                    <td width="35%" align="right">ACL</td>
+                    <td width="65%" align="left"><input value="public-read" name="acl" id="idacl" type="text"></td>
+                </tr>
+                <tr>
+                    <td width="35%" align="right">Content-type</td>
+                    <td width="65%" align="left"><input value="text/plain" name="content-type" id="idcontent-type" type="text"></td>
+                </tr>
+                <tr>
+                    <td width="35%" align="right">AWSAccessKeyId <br /><small>(usually hidden)</small></td>
+                    <td width="65%" align="left"><input value="" name="AWSAccessKeyId" id="idAWSAccessKeyId" type="text"></td>
+                </tr>
+                <tr>
+                    <td width="35%" align="right">policy <br /><small>(usually hidden)</small></td>
+                    <td width="65%" align="left"><input value="" name="policy" id="idpolicy" type="text"></td>
+                </tr>
+                <tr>
+                    <td width="35%" align="right">signature <br /><small>(usually hidden)</small></td>
+                    <td width="65%" align="left"><input value="" name="signature" id="idsignature" type="text"></td>
+                </tr>
+                <tr>
+                    <td width="35%" align="right">File</td>
+                    <td width="65%" align="left" class="file"><input name="file" type="file" id="file"></td>
+                </tr>
+            </table>
+        </div>
+
+        <div class="col"  style="width:22%;">
+            <div class="row" style="border-bottom:1px solid #222;">
+                <div class="info">
+                    <b>Ajax upload</b> nam adipiscing augue at nibh interdum dapibus.
+                </div>
+                <input type="button" id="ajax-upload-button" value="Ajax upload" />
+                <div style="width:80%; height:10px; background:white; position:absolute; bottom:10px; left:20px;"></div>
+            </div>
+            <div class="row">
+                <div class="info">
+                    <b>Basic upload</b> Phasellus sapien risus, vestibulum ac tincidunt in, auctor non leo. Nulla sit amet ante quam. Sed et risus in dui accumsan sodales eget eget lorem.
+                </div>
+                <input type="button" id="basic-upload-button" value="Basic upload"/>
+            </div>
+        </div>
+
+        <div style="clear:both;"></div>
+    </div>
+
+
+<!--
 <h1>self-contained HTML5 uploads to Amazon S3 - interactive demo</h1>
 <p>Uploads through a file hosted on Amazon, with security policy.</p>
 
@@ -215,7 +364,7 @@ input { width: 100%; }
 
 </div>
 </div>
-
+-->
 
 </body>
 </html>
