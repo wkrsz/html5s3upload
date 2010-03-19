@@ -45,7 +45,6 @@
         }
 
 
-
         window.onload = function(){
 
             // create elements
@@ -54,14 +53,8 @@
                 bar = document.body.appendChild(document.createElement("div")).appendChild(document.createElement("span")),
                 div = document.body.appendChild(document.createElement("div"));
             
-            // set input type as file
-            //input.setAttribute("type", "file");
             
-            // enable multiple selection (note: it does not work with direct input.multiple = true assignment)
-            //input.setAttribute("multiple", "false");
-            
-            // auto upload on files change
-            var onfileselect = function(){
+            var startUpload = function(){
                 
                 // disable the input
                 input.setAttribute.disabled = true;
@@ -129,8 +122,8 @@
 
 
             };
-            //input.addEventListener("change", onfileselect, false);
-  	    document.getElementById('ajaxuploadbutton').addEventListener("click", onfileselect, false);
+
+  	    document.getElementById('ajaxuploadbutton').addEventListener("click", startUpload, false);
             
             sub.parentNode.className = bar.parentNode.className = "progress";
         };
