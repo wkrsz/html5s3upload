@@ -63,7 +63,7 @@
                         aws_access_key: document.getElementById('idAWSAccessKeyId').value,
                         policy: document.getElementById('idpolicy').value,
                         signature: document.getElementById('idsignature').value,
-                        url: document.getElementById('base-url').value
+                        url: "http://s3.amazonaws.com/"+document.getElementById('idbucket').value
                     },
                     
                     // clear the container 
@@ -80,7 +80,7 @@
                             "Total Sent: " + size(this.sent + rpe.loaded) + " of " + size(this.total)
                         ].join("<br />");
                         sub.style.width = ((rpe.loaded * 200 / rpe.total) >> 0) + "px";
-                        bar.style.width = (((this.sent + rpe.loaded) * 200 / this.total) >> 0) + "px";
+                        bar.style.width = (((this.sent + rpe.loaded) * 200 / this.total) >> 0) + "px"
                     },
                     
                     // fired when last file has been uploaded
@@ -123,7 +123,7 @@
 
             };
 
-  	    document.getElementById('ajaxuploadbutton').addEventListener("click", startUpload, false);            
+  	    document.getElementById('ajax-upload-button').addEventListener("click", startUpload, false);
             sub.parentNode.className = bar.parentNode.className = "progress";
         };	
     </script>
@@ -215,6 +215,7 @@
                 <h2>step 2</h2>Suspendisse potenti. Nam a lorem sit amet felis venenatis dignissim. In sodales turpis sed justo adipiscing vitae condimentum eros varius.
             </div>
 
+            <form action="http://s3.amazonaws.com/com.pawky.dev">
             <table cellpadding="0" cellspacing="0" border="0" id="form-table">
                 <tr>
                     <td width="35%" align="right">Bucket name</td>
@@ -238,7 +239,7 @@
                 </tr>
                 <tr>
                     <td width="35%" align="right">policy <br /><small>(usually hidden)</small></td>
-                    <td width="65%" align="left"><input value="" name="policy" id="idpolicy" type="text"></td>
+                    <td width="65%" align="left"><input value="" name="policy" id="idpolicy" typarameters.policype="text"></td>
                 </tr>
                 <tr>
                     <td width="35%" align="right">signature <br /><small>(usually hidden)</small></td>
@@ -249,6 +250,7 @@
                     <td width="65%" align="left" class="file"><input name="file" type="file" id="file"></td>
                 </tr>
             </table>
+            </form>
         </div>
 
         <div class="col"  style="width:22%;">
@@ -263,108 +265,12 @@
                 <div class="info">
                     <b>Basic upload</b> Phasellus sapien risus, vestibulum ac tincidunt in, auctor non leo. Nulla sit amet ante quam. Sed et risus in dui accumsan sodales eget eget lorem.
                 </div>
-                <input type="button" id="basic-upload-button" value="Basic upload"/>
+                <input type="button" id="basic-upload-button" value="Basic upload" onclick="document.forms[0].submit()"/>
             </div>
         </div>
 
         <div style="clear:both;"></div>
     </div>
-
-
-<!--
-<h1>self-contained HTML5 uploads to Amazon S3 - interactive demo</h1>
-<p>Uploads through a file hosted on Amazon, with security policy.</p>
-
-<div style="width: 902px">
-<div style="float: right; width: 450px">
-
-	<h3>Policy Document</h3>
-	<p>The Policy Document.</p>
-<p><textarea id="policy" cols="40" rows="12">{
-  "expiration": "2012-01-01T12:00:00.000Z",
-  "conditions": [
-    {"bucket": "<bucketname>" },
-    {"acl": "public-read" },
-    ["starts-with", "$key", ""],
-    ["starts-with", "$Content-Type", ""],
-  ]
-}
-</textarea></p>
-
-	<h3>Credentials</h3>
-	<p>is not actually transimtted</p>
-	
-	<table>
-	  <tbody>
-	  <tr>
-	    <td>AWS Key</td>
-	    <td><input id="awskey" style="width:100%" value="" type="text"></td>
-	  </tr>
-	  </tbody>
-	</table>
-
-	<p><input value="Set Key, Calculate Policy & Signature" onclick="addPolicy()" type="button" /></p>
-	
-</div>
-
-<div style="float: right; width: 450px;">
-<hr />
-<h3>Set the Bucket</h3>
-<p>Must be in the form o s3.amazonaws.com/bucketname, not bucketname.s3.amazonaws.com !</p>
-<p>Post URL: <input id="base-url" value="http://s3.amazonaws.com/<bucketname>" type="text"> <button onclick="setUrl()">Set URL</button> </p>
-
-<hr />
-<h2>Sample Form Based on the Above Fields</h2>
-<p>Form data:</p>
-<div class="userinteraction">
-<form id="postform" action="http://s3.amazonaws.com/<bucketname>/" method="post" enctype="multipart/form-data">
-<table width="300px">
-  <col width="10%"><col width="90%">
-  <tbody id="table">
-
-	  <tr id="field-key">
-		  <td align="right">key:</td>
-		  <td><input value="dummy test-file" name="key" id="idkey" type="text"></td>
-	  </tr>
-	  <tr id="field-acl">
-		  <td align="right">acl:</td>
-		  <td><input value="public-read" name="acl" id="idacl" type="text"></td>
-	  </tr>
-	  <tr id="field-content-type">
-		  <td align="right">content-type:</td>
-		  <td><input value="text/plain" name="content-type" id="idcontent-type" type="text"></td>
-	  </tr>
-	  <tr id="field-AWSAccessKeyId"><td align="right">AWSAccessKeyId <br /><small>(usually hidden)</small>:</td>
-		  <td><input value="" name="AWSAccessKeyId" id="idAWSAccessKeyId" type="text"></td>
-	  </tr>
-	  <tr id="field-policy">
-		  <td align="right">policy <br /><small>(usually hidden)</small>:</td>
-		  <td><input value="" name="policy" id="idpolicy" type="text"></td>
-	  </tr>
-	  <tr id="field-signature">
-		  <td align="right">signature <br /><small>(usually hidden)</small>:</td>
-		  <td><input value="" name="signature" id="idsignature" type="text"></td>
-	  </tr>
-
-  </tbody>
-</table>
-
-<p>File: <input name="file" type="file" id="file"> <br />
-<br />
-</p>
-<p>regular submit (no ajax or progress bar - just like in <a href='http://s3.amazonaws.com/doc/s3-example-code/post/post_sample.html'>Amazon's  demo</a> )
-<small><input name="submit" value="Basic ulpoad" style='width: 100px' type="submit" ></small>
-</p>
-</form>
-	<h3>Finally... upload!</h3>
-	<p>
-	<button id="ajaxuploadbutton"><big><strong>Ajax upload with progress - GO</strong><big></button>
-	</p>
-</div>
-
-</div>
-</div>
--->
 
 </body>
 </html>

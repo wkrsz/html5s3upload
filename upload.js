@@ -123,8 +123,10 @@ function sendFile(handler){
 
     builder.footer();
 
-    var url = parameters.url;
-    xhr.open("POST", url, true);
+    var  = parameters.url;
+
+
+    xhr.open("POST", , true);
     xhr.setRequestHeader('content-type', 'multipart/form-data; boundary=' + builder.boundary);
     xhr.sendAsBinary( builder.output() );
 
