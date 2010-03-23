@@ -76,6 +76,7 @@ function RequestBuilder() {
 }
 
 function sendFile(handler){
+    var parameters = handler.parameters;
     var xhr = new XMLHttpRequest;
 
     //check size
@@ -112,17 +113,19 @@ function sendFile(handler){
     builder.boundary = '------multipartformboundary' + id;
 
     builder.param( 'key', id + '-' + escape(file.fileName) );
-    builder.param( 'acl', document.getElementById('idacl').value );
+    builder.param( 'acl', parameters.acl );
     builder.param( 'content-type', file.type );
-    builder.param( 'AWSAccessKeyId', document.getElementById('idAWSAccessKeyId').value );
-    builder.param( 'policy', document.getElementById('idpolicy').value );
-    builder.param( 'signature', document.getElementById('idsignature').value );
+    builder.param( 'AWSAccessKeyId', parameters.aws_access_key );
+    builder.param( 'policy', parameters.policy );
+    builder.param( 'signature', parameters.signature );
 
     builder.file( 'file', file.fileName, 'application/ocet-stream', file.getAsBinary() );
 
     builder.footer();
 
-    var url = document.getElementById('base-url').value;
+    var  url = parameters.url;
+
+
     xhr.open("POST", url, true);
     xhr.setRequestHeader('content-type', 'multipart/form-data; boundary=' + builder.boundary);
     xhr.sendAsBinary( builder.output() );

@@ -1,4 +1,5 @@
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml">
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
@@ -10,22 +11,34 @@
 
     <script type="text/javascript">
 
-        function addPolicy() {
+        function generatePolicy() {
           var awsid = document.getElementById("idAWSAccessKeyId").value;
           var awskey = document.getElementById("awskey").value;
 
           var policyText = document.getElementById("policy").value;
           var policyBase64 = Base64.encode(policyText);
-          document.getElementById("idpolicy").value = policyBase64;
+          document.getElementById("gen-policy").value = policyBase64;
 
           var signature = b64_hmac_sha1(awskey, policyBase64);
-          document.getElementById("idsignature").value = signature;
+          document.getElementById("gen-signature").value = signature;
         }
 
-        function setUrl() {
-          var newurl = document.getElementById("base-url").value;
-          var form = document.getElementById("postform");
-          form.action = newurl;
+        function applyPolicy() {
+          var signature = document.getElementById("gen-signature").value;
+          var policy = document.getElementById("gen-policy").value;
+          document.getElementById("idsignature").value = signature;
+          document.getElementById("idpolicy").value = policy;
+
+          var bucketJson =  eval('('+document.getElementById("policy").value+')');
+          var bucket = bucketJson.conditions[0].bucket;
+          document.getElementById("idbucket").value = bucket;
+        }
+
+        function basicSendFile(){
+            var form =  document.getElementById("postform");
+            var bucket = document.getElementById("idbucket").value;            
+            form.action = "http://s3.amazonaws.com/"+bucket;
+            form.submit();
         }
 
 
@@ -33,9 +46,9 @@
 
             // create elements
             var input = document.getElementById("file");
-            var sub = document.body.appendChild(document.createElement("div")).appendChild(document.createElement("span")),
-                bar = document.body.appendChild(document.createElement("div")).appendChild(document.createElement("span")),
-                div = document.body.appendChild(document.createElement("div"));
+            var info = document.getElementById("ajax-message"),
+                progress = document.getElementById("progress");
+
             
             
             var startUpload = function(){
@@ -49,55 +62,51 @@
                 
                     // list of files to upload
                     file:input.files[0],
+
+                    parameters: {
+                        acl: document.getElementById('idacl').value,
+                        aws_access_key: document.getElementById('idAWSAccessKeyId').value,
+                        policy: document.getElementById('idpolicy').value,
+                        signature: document.getElementById('idsignature').value,
+                        url: "http://s3.amazonaws.com/"+document.getElementById('idbucket').value
+                    },
                     
                     // clear the container 
-                    onloadstart:function(){
-                        div.innerHTML = "Init upload ... ";
-                        sub.style.width = bar.style.width = "0px";
+                    onloadstart:function(){                        
+                        info.innerHTML = "Init upload ... ";
+                        progress.style.width = "1%";
                     },
                     
                     // do something during upload ...
                     onprogress:function(rpe){
-                        div.innerHTML = [
-                            "Uploading: " + this.file.fileName,
-                            "Sent: " + size(rpe.loaded) + " of " + size(rpe.total),
-                            "Total Sent: " + size(this.sent + rpe.loaded) + " of " + size(this.total)
-                        ].join("<br />");
-                        sub.style.width = ((rpe.loaded * 200 / rpe.total) >> 0) + "px";
-                        bar.style.width = (((this.sent + rpe.loaded) * 200 / this.total) >> 0) + "px";
+                        progress.style.width = (rpe.loaded * 100) / rpe.total   + "%";
                     },
                     
                     // fired when last file has been uploaded
-                    onload:function(rpe, xhr){
-
+                    onload:function(rpe, xhr){                    
 			var msg = '';
 			if (xhr.status == 204) {
-				msg = "Uploaded successfully: " + xhr.getResponseHeader("Location");
+                                progress.style.width = "100%";
+                                var link = xhr.getResponseHeader("Location");
+				msg = "Uploaded successfully: <br/> link: <small><a href='"+link+"'>"+link+"</a></small>";
 			} else {
 				msg = "Error. ";
 				msg += "<i>" + xhr.responseText + "</i>";
 			}
-
-                        div.innerHTML += ["", msg ].join("<br />");
-                        sub.style.width = bar.style.width = "200px";
-                        
+                        info.innerHTML = ["", msg ].join("<br />");
                         // enable the input again
                         input.removeAttribute("disabled");
                     },
                     
                     // if something is wrong ... (from native instance or because of size)
                     onerror:function(msg){
-                        if (!msg) msg = "error";
-                        div.innerHTML = msg;
-                        
-		    	alert('error!');
-
+                        info.innerHTML = msg;
                         // enable the input again
                         input.removeAttribute("disabled");
                     },
 
 		    onabort:function(){
-		    	alert('aborted!');
+		    	info.innerHTML += "Aborted!";
 		    }
                 };
     		handler.sent = 0;
@@ -107,31 +116,58 @@
 
             };
 
-  	    document.getElementById('ajaxuploadbutton').addEventListener("click", startUpload, false);
-            
-            sub.parentNode.className = bar.parentNode.className = "progress";
-        };
-	
-        </script>
+  	    document.getElementById('ajax-upload-button').addEventListener("click", startUpload, false);
+            document.getElementById('basic-upload-button').addEventListener("click", basicSendFile, false);
+        };	
+    </script>
 
-<style type="text/css">
-body { text-decoration: none; font-family: sans-serif; font-size: 10pt; font-weight: medium; }
-input { width: 100%; }
-.userinteraction { border: 1px solid #009; background: #fff; padding: 5px }
-.progress { width: 200px; border: 1px solid #BBB; background-color: #FFF; padding: 0; }
-.progress span { display: block; width: 0px; height: 10px; background-color: #DDD; }
-</style>
+    <style type="text/css">
+
+        body{background: #BFCFCC; text-align:center; font-size:12px; caption-side:black;}
+        input, select, textarea{background: #f9e9c2; border:none; -moz-border-radius: 6px; -webkit-border-radius: 6px; padding:3px;}
+        input{height:22px;}
+
+        #content{width:980px; height:auto; margin:auto;}
+        .col{min-height:550px; height:auto !important; height:650px; float:left; padding:10px 10px 30px;  background: #8C9C9A; margin-left:10px;
+        -moz-border-radius: 15px; -webkit-border-radius: 15px;}
+        .col img, .col .step{float:left;}
+        .row{position:relative; padding:10px; margin:auto;}
+        .step{width:50px; height:35px; padding-top:15px; -moz-border-radius: 10px; -webkit-border-radius: 10px; background:white; color:orange; text-align:center; font-weight:bold; font-size:13px;
+        font-family:tahoma;}
+
+        .info{ width:93%; padding: 6px; background:#bfcfcf; text-align:left; -moz-border-radius: 5px; -webkit-border-radius: 5px; margin:auto; color:#111;}
+        .gen-signature{width:95%; margin:30px auto 0 auto;}
+        textarea#policy{font-size:11px; width:97%; height:130px;}
+        input#awskey{width:90%;}
+        input#gen-signature{width:90%;}
+        #form-table{width:95%; margin-top:30px;}
+        #form-table tr td input{ width:98%;}
+        #form-table tr td{padding:0 10px 13px 0; height:auto; font-size:11px; color:black; }
+        #basic-upload-button, #ajax-upload-button{width:80%; height:35px; margin: 10px 0;  background:orange; border:2px solid white;}
+        #generate, #apply-signature{width:80%; height:35px; background: #485C5A; border:2px solid white; color: white;}
+        #apply-signature{width:50%;}
+        .ajax-message-wrapper{width:96%; padding:5px; color: white; text-align:left; border: 1px solid #ccc; color:black;}
+        #ajax-message{font-size:11px; overflow:auto; padding: 0 0 5px 0; height:135px;}
+        .progress-wrapper{position:relative; width:100%; height:10px; margin: 10px 0; border:1px solid #ccc; }
+        #progress{width:1%; background:white; height:100%;}
+        #ifr{ display:block; width:1px; height:1px; }
+    </style>
+
 </head>
-<body style="background: rgb(176, 176, 255) none repeat scroll 0%; -moz-background-clip: -moz-initial; -moz-background-origin: -moz-initial; -moz-background-inline-policy: -moz-initial;">
-<h1>self-contained HTML5 uploads to Amazon S3 - interactive demo</h1>
-<p>Uploads through a file hosted on Amazon, with security policy.</p>
+<body>
 
-<div style="width: 902px">
-<div style="float: right; width: 450px">
+    <div id="content">
+        <div class="col" style="width:35%;">
+            <div class="info">
+                <h2>step 1</h2>Suspendisse potenti. Phasellus rutrum ante in ante vestibulum et aliquet lectus volutpat. Nam a lorem sit amet felis venenatis dignissim. In sodales turpis sed justo adipiscing vitae condimentum eros varius.
+            </div>
 
-	<h3>Policy Document</h3>
-	<p>The Policy Document.</p>
-<p><textarea id="policy" cols="40" rows="12">{
+            <div class="gen-signature">
+                <table cellpadding="0" cellspacing="0" border="0"
+                    <tr>
+                        <td width="60%"  align="center">
+                            Policy
+                            <textarea id="policy" cols="40" rows="12">{
   "expiration": "2012-01-01T12:00:00.000Z",
   "conditions": [
     {"bucket": "<bucketname>" },
@@ -140,82 +176,112 @@ input { width: 100%; }
     ["starts-with", "$Content-Type", ""],
   ]
 }
-</textarea></p>
+</textarea>
+                        </td>
+                        <td width="40%"  align="center">
+                            AWS Key
+                            <input id="awskey" value="" type="text">
+                        </td>
+                    </tr>
+                    <tr>
+                        <td colspan="2" height="80px"e><input type="button" id="generate" onclick="generatePolicy()" value="Calculate Policy &amp; Signature"></td>
+                    </tr>
+                    <tr>
+                        <td width="50%" align="center">
+                            Policy<br/>
+                            <input value="" name="policy" id="gen-policy" type="text">
+                        </td>
+                        <td width="50%">
+                            Signature<br/>
+                            <input value="" name="signature" id="gen-signature" type="text">
+                        </td>
+                    </tr>
+                </table>
+            </div>
 
-	<h3>Credentials</h3>
-	<p>is not actually transimtted</p>
-	
-	<table>
-	  <tbody>
-	  <tr>
-	    <td>AWS Key</td>
-	    <td><input id="awskey" style="width:100%" value="" type="text"></td>
-	  </tr>
-	  </tbody>
-	</table>
+            <br/>
+            <br/>
+            <br/>
 
-	<p><input value="Set Key, Calculate Policy & Signature" onclick="addPolicy()" type="button" /></p>
-	
-</div>
+            <input type="button" id="apply-signature" onclick="applyPolicy()" value="Apply &gt;&gt;">
 
-<div style="float: right; width: 450px;">
-<hr />
-<h3>Set the Bucket</h3>
-<p>Must be in the form o s3.amazonaws.com/bucketname, not bucketname.s3.amazonaws.com !</p>
-<p>Post URL: <input id="base-url" value="http://s3.amazonaws.com/<bucketname>" type="text"> <button onclick="setUrl()">Set URL</button> </p>
+        </div>
 
-<hr />
-<h2>Sample Form Based on the Above Fields</h2>
-<p>Form data:</p>
-<div class="userinteraction">
-<form id="postform" action="http://s3.amazonaws.com/<bucketname>/" method="post" enctype="multipart/form-data">
-<table width="300px">
-  <col width="10%"><col width="90%">
-  <tbody id="table">
+        <div class="col" style="width:33%;">
 
-	  <tr id="field-key">
-		  <td align="right">key:</td>
-		  <td><input value="dummy test-file" name="key" id="idkey" type="text"></td>
-	  </tr>
-	  <tr id="field-acl">
-		  <td align="right">acl:</td>
-		  <td><input value="public-read" name="acl" id="idacl" type="text"></td>
-	  </tr>
-	  <tr id="field-content-type">
-		  <td align="right">content-type:</td>
-		  <td><input value="text/plain" name="content-type" id="idcontent-type" type="text"></td>
-	  </tr>
-	  <tr id="field-AWSAccessKeyId"><td align="right">AWSAccessKeyId <br /><small>(usually hidden)</small>:</td>
-		  <td><input value="" name="AWSAccessKeyId" id="idAWSAccessKeyId" type="text"></td>
-	  </tr>
-	  <tr id="field-policy">
-		  <td align="right">policy <br /><small>(usually hidden)</small>:</td>
-		  <td><input value="" name="policy" id="idpolicy" type="text"></td>
-	  </tr>
-	  <tr id="field-signature">
-		  <td align="right">signature <br /><small>(usually hidden)</small>:</td>
-		  <td><input value="" name="signature" id="idsignature" type="text"></td>
-	  </tr>
+            <div class="info">
+                <h2>step 2</h2>Suspendisse potenti. Nam a lorem sit amet felis venenatis dignissim. In sodales turpis sed justo adipiscing vitae condimentum eros varius.
+            </div>
 
-  </tbody>
-</table>
+            <table cellpadding="0" cellspacing="0" border="0" id="form-table">
+                <tr>
+                    <td width="35%" align="right">Bucket name</td>
+                    <td width="65%" align="left"><input value="" name="key" id="idbucket" type="text"></td>
+                </tr>
+            </table>
 
-<p>File: <input name="file" type="file" id="file"> <br />
-<br />
-</p>
-<p>regular submit (no ajax or progress bar - just like in <a href='http://s3.amazonaws.com/doc/s3-example-code/post/post_sample.html'>Amazon's  demo</a> )
-<small><input name="submit" value="Basic ulpoad" style='width: 100px' type="submit" ></small>
-</p>
-</form>
-	<h3>Finally... upload!</h3>
-	<p>
-	<button id="ajaxuploadbutton"><big><strong>Ajax upload with progress - GO</strong><big></button>
-	</p>
-</div>
+            <form action="http:/s3.amazonaws.com" enctype="multipart/form-data" method="post" target="ifr" id="postform">
+            <table cellpadding="0" cellspacing="0" border="0" id="form-table">                
+                <tr>
+                    <td width="35%" align="right">Key</td>
+                    <td width="65%" align="left"><input value="dummy test-file" name="key" id="idkey" type="text"></td>
+                </tr>
+                <tr>
+                    <td width="35%" align="right">ACL</td>
+                    <td width="65%" align="left"><input value="public-read" name="acl" id="idacl" type="text"></td>
+                </tr>
+                <tr>
+                    <td width="35%" align="right">Content-type</td>
+                    <td width="65%" align="left"><input value="text/plain" name="content-type" id="idcontent-type" type="text"></td>
+                </tr>
+                <tr>
+                    <td width="35%" align="right">AWSAccessKeyId <br /><small>(usually hidden)</small></td>
+                    <td width="65%" align="left"><input value="" name="AWSAccessKeyId" id="idAWSAccessKeyId" type="text"></td>
+                </tr>
+                <tr>
+                    <td width="35%" align="right">policy <br /><small>(usually hidden)</small></td>
+                    <td width="65%" align="left"><input value="" name="policy" id="idpolicy" typarameters.policype="text"></td>
+                </tr>
+                <tr>
+                    <td width="35%" align="right">signature <br /><small>(usually hidden)</small></td>
+                    <td width="65%" align="left"><input value="" name="signature" id="idsignature" type="text"></td>
+                </tr>
+                <tr>
+                    <td width="35%" align="right">File</td>
+                    <td width="65%" align="left" class="file"><input name="file" type="file" id="file"></td>
+                </tr>
+            </table>
+            </form>
+        </div>
 
-</div>
-</div>
+        <div class="col"  style="width:22%;">
+            <div class="row" style="border-bottom:1px solid #222; height:310px;">
+                <div class="info">
+                    <b>Ajax upload</b> nam adipiscing augue at nibh interdum dapibus.
+                </div>                
+                <input type="button" id="ajax-upload-button" value="Ajax upload"  />
 
+                <div class="progress-wrapper">
+                    <div id="progress" style="width:1%; height:10px; background:white; "></div>
+                </div>
+
+                <div class="ajax-message-wrapper">
+                    <small><b>messages:</b></small>
+                    <div id="ajax-message"></div>
+                </div>
+
+            </div>
+            <div class="row" style="height:190px;">
+                <div class="info">
+                    <b>Basic upload</b>  Nulla sit amet ante quam. Sed et risus in dui accumsan sodales eget eget lorem.
+                </div>
+                <input type="button" id="basic-upload-button" value="Basic upload"  />
+                <iframe name="ifr" id="ifr" frameborder="0" scrolling="no"></iframe>
+            </div>
+        </div>
+
+        <div style="clear:both;"></div>
+    </div>
 
 </body>
 </html>
