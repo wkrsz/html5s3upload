@@ -28,12 +28,17 @@
           var policy = document.getElementById("gen-policy").value;
           document.getElementById("idsignature").value = signature;
           document.getElementById("idpolicy").value = policy;
+
+          var bucketJson =  eval('('+document.getElementById("policy").value+')');
+          var bucket = bucketJson.conditions[0].bucket;
+          document.getElementById("idbucket").value = bucket;
         }
 
-        function setUrl() {
-          var newurl = document.getElementById("base-url").value;
-          var form = document.getElementById("postform");
-          form.action = newurl;
+        function basicSendFile(){
+            var form =  document.getElementById("postform");
+            var bucket = document.getElementById("idbucket").value;            
+            form.action = "http://s3.amazonaws.com/"+bucket;
+            form.submit();
         }
 
 
@@ -41,9 +46,9 @@
 
             // create elements
             var input = document.getElementById("file");
-            var sub = document.body.appendChild(document.createElement("div")).appendChild(document.createElement("span")),
-                bar = document.body.appendChild(document.createElement("div")).appendChild(document.createElement("span")),
-                div = document.body.appendChild(document.createElement("div"));
+            var info = document.getElementById("ajax-message"),
+                progress = document.getElementById("progress");
+
             
             
             var startUpload = function(){
@@ -67,53 +72,41 @@
                     },
                     
                     // clear the container 
-                    onloadstart:function(){
-                        div.innerHTML = "Init upload ... ";
-                        sub.style.width = bar.style.width = "0px";
+                    onloadstart:function(){                        
+                        info.innerHTML = "Init upload ... ";
+                        progress.style.width = "1%";
                     },
                     
                     // do something during upload ...
                     onprogress:function(rpe){
-                        div.innerHTML = [
-                            "Uploading: " + this.file.fileName,
-                            "Sent: " + size(rpe.loaded) + " of " + size(rpe.total),
-                            "Total Sent: " + size(this.sent + rpe.loaded) + " of " + size(this.total)
-                        ].join("<br />");
-                        sub.style.width = ((rpe.loaded * 200 / rpe.total) >> 0) + "px";
-                        bar.style.width = (((this.sent + rpe.loaded) * 200 / this.total) >> 0) + "px"
+                        progress.style.width = (rpe.loaded * 100) / rpe.total   + "%";
                     },
                     
                     // fired when last file has been uploaded
-                    onload:function(rpe, xhr){
-
+                    onload:function(rpe, xhr){                    
 			var msg = '';
 			if (xhr.status == 204) {
-				msg = "Uploaded successfully: " + xhr.getResponseHeader("Location");
+                                progress.style.width = "100%";
+                                var link = xhr.getResponseHeader("Location");
+				msg = "Uploaded successfully: <br/> link: <small><a href='"+link+"'>"+link+"</a></small>";
 			} else {
 				msg = "Error. ";
 				msg += "<i>" + xhr.responseText + "</i>";
 			}
-
-                        div.innerHTML += ["", msg ].join("<br />");
-                        sub.style.width = bar.style.width = "200px";
-                        
+                        info.innerHTML = ["", msg ].join("<br />");
                         // enable the input again
                         input.removeAttribute("disabled");
                     },
                     
                     // if something is wrong ... (from native instance or because of size)
                     onerror:function(msg){
-                        if (!msg) msg = "error";
-                        div.innerHTML = msg;
-                        
-		    	alert('error!');
-
+                        info.innerHTML = msg;
                         // enable the input again
                         input.removeAttribute("disabled");
                     },
 
 		    onabort:function(){
-		    	alert('aborted!');
+		    	info.innerHTML += "Aborted!";
 		    }
                 };
     		handler.sent = 0;
@@ -124,7 +117,7 @@
             };
 
   	    document.getElementById('ajax-upload-button').addEventListener("click", startUpload, false);
-            sub.parentNode.className = bar.parentNode.className = "progress";
+            document.getElementById('basic-upload-button').addEventListener("click", basicSendFile, false);
         };	
     </script>
 
@@ -138,7 +131,7 @@
         .col{min-height:550px; height:auto !important; height:650px; float:left; padding:10px 10px 30px;  background: #8C9C9A; margin-left:10px;
         -moz-border-radius: 15px; -webkit-border-radius: 15px;}
         .col img, .col .step{float:left;}
-        .row{position:relative; height:250px; padding:10px; margin:auto;}
+        .row{position:relative; padding:10px; margin:auto;}
         .step{width:50px; height:35px; padding-top:15px; -moz-border-radius: 10px; -webkit-border-radius: 10px; background:white; color:orange; text-align:center; font-weight:bold; font-size:13px;
         font-family:tahoma;}
 
@@ -150,9 +143,14 @@
         #form-table{width:95%; margin-top:30px;}
         #form-table tr td input{ width:98%;}
         #form-table tr td{padding:0 10px 13px 0; height:auto; font-size:11px; color:black; }
-        #basic-upload-button, #ajax-upload-button{width:80%; height:35px; position:absolute; left:20px; bottom:30px; background:orange; border:2px solid white;}
+        #basic-upload-button, #ajax-upload-button{width:80%; height:35px; margin: 10px 0;  background:orange; border:2px solid white;}
         #generate, #apply-signature{width:80%; height:35px; background: #485C5A; border:2px solid white; color: white;}
         #apply-signature{width:50%;}
+        .ajax-message-wrapper{width:96%; padding:5px; color: white; text-align:left; border: 1px solid #ccc; color:black;}
+        #ajax-message{font-size:11px; overflow:auto; padding: 0 0 5px 0; height:135px;}
+        .progress-wrapper{position:relative; width:100%; height:10px; margin: 10px 0; border:1px solid #ccc; }
+        #progress{width:1%; background:white; height:100%;}
+        #ifr{ display:block; width:1px; height:1px; }
     </style>
 
 </head>
@@ -215,12 +213,15 @@
                 <h2>step 2</h2>Suspendisse potenti. Nam a lorem sit amet felis venenatis dignissim. In sodales turpis sed justo adipiscing vitae condimentum eros varius.
             </div>
 
-            <form action="http://s3.amazonaws.com/com.pawky.dev">
             <table cellpadding="0" cellspacing="0" border="0" id="form-table">
                 <tr>
                     <td width="35%" align="right">Bucket name</td>
-                    <td width="65%" align="left"><input value="dummy test-file" name="key" id="idbucket" type="text"></td>
+                    <td width="65%" align="left"><input value="" name="key" id="idbucket" type="text"></td>
                 </tr>
+            </table>
+
+            <form action="http:/s3.amazonaws.com" enctype="multipart/form-data" method="post" target="ifr" id="postform">
+            <table cellpadding="0" cellspacing="0" border="0" id="form-table">                
                 <tr>
                     <td width="35%" align="right">Key</td>
                     <td width="65%" align="left"><input value="dummy test-file" name="key" id="idkey" type="text"></td>
@@ -254,18 +255,28 @@
         </div>
 
         <div class="col"  style="width:22%;">
-            <div class="row" style="border-bottom:1px solid #222;">
+            <div class="row" style="border-bottom:1px solid #222; height:310px;">
                 <div class="info">
                     <b>Ajax upload</b> nam adipiscing augue at nibh interdum dapibus.
+                </div>                
+                <input type="button" id="ajax-upload-button" value="Ajax upload"  />
+
+                <div class="progress-wrapper">
+                    <div id="progress" style="width:1%; height:10px; background:white; "></div>
                 </div>
-                <input type="button" id="ajax-upload-button" value="Ajax upload" />
-                <div style="width:80%; height:10px; background:white; position:absolute; bottom:10px; left:20px;"></div>
+
+                <div class="ajax-message-wrapper">
+                    <small><b>messages:</b></small>
+                    <div id="ajax-message"></div>
+                </div>
+
             </div>
-            <div class="row">
+            <div class="row" style="height:190px;">
                 <div class="info">
-                    <b>Basic upload</b> Phasellus sapien risus, vestibulum ac tincidunt in, auctor non leo. Nulla sit amet ante quam. Sed et risus in dui accumsan sodales eget eget lorem.
+                    <b>Basic upload</b>  Nulla sit amet ante quam. Sed et risus in dui accumsan sodales eget eget lorem.
                 </div>
-                <input type="button" id="basic-upload-button" value="Basic upload" onclick="document.forms[0].submit()"/>
+                <input type="button" id="basic-upload-button" value="Basic upload"  />
+                <iframe name="ifr" id="ifr" frameborder="0" scrolling="no"></iframe>
             </div>
         </div>
 
